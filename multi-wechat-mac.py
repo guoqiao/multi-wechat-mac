@@ -3,6 +3,7 @@
 import argparse
 import os
 import subprocess
+from pathlib import Path
 
 
 def run_cmd(cmdline: str):
@@ -21,6 +22,7 @@ def cli():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("-n", "--name", default="WeChat2", help="Name for the new WeChat app")
+    parser.add_argument("-i", "--icon", default="", help="Icon image for the new WeChat app in .icns format")
     return parser.parse_args()
 
 
@@ -52,6 +54,28 @@ def main():
         print(f"{path} already exists, skip")
     else:
         run_cmd(f"sudo cp -R /Applications/WeChat.app {path}")
+
+    step += 1
+    print(f"\nStep {step}: Change Icon")
+    if args.icon:
+        icon_path = Path(args.icon)
+        assert icon_path.is_file(), f"Icon image {icon_path} does not exist"
+        if icon_path.suffix.lower() == ".icns":
+            icns_path = icon_path
+        else:
+            print(f"Converting {icon_path} to .icns format")
+            icns_path = icon_path.with_suffix(".icns")
+            cmdline = f"sips -s format icns {icon_path} --out {icns_path}"
+            run_cmd(cmdline)
+
+        app_icns_path = f"/Applications/{name}.app/Contents/Resources/AppIcon.icns"
+        print(f"Copying {icns_path} to {app_icns_path}")
+        cmdline = f"sudo cp {icns_path} {app_icns_path}"
+        run_cmd(cmdline)
+        # update app bundle
+        run_cmd(f"sudo touch {path}")
+    else:
+        print("No icon image provided, skip")
 
     step += 1
     print(f"\nStep {step}: Setting App Identifier for {path}")
